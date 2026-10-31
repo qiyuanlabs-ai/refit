@@ -44,9 +44,14 @@ On top of that, Refit:
   Action Scheduler, CMB2 and others), because the fix there is to update the library.
 - Separates problems that are new on the target PHP from ones that already exist on your
   minimum PHP version.
-- Declares dynamic properties (deprecated in PHP 8.2) for you, or adds
-  `#[\AllowDynamicProperties]` when the parent class is not in the project
-  (for example `WP_Widget`).
+- Declares dynamic properties (deprecated in PHP 8.2) as untyped public properties.
+  That is not behaviour-neutral: `property_exists()`, `get_object_vars()` and
+  `json_encode()` include a declared property even before it is assigned, and
+  `__get`, `__isset` and `__unset` no longer run for that name. When the class or
+  an ancestor defines one of those methods, or the parent class is not in the
+  project (for example `WP_Widget`), Refit adds `#[\AllowDynamicProperties]`
+  instead of declaring the property. Classes that define `__set` are left
+  unchanged, because assignment already goes through that method.
 - Flags `DateTime::modify()` calls with a non-literal argument and no `try`, which throw
   `DateMalformedStringException` on PHP 8.3 instead of returning `false`.
 - Writes reports you can send to a client or attach to a ticket: HTML, Markdown and JSON.

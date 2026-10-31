@@ -137,7 +137,7 @@ final class Scanner
                 Finding::DEPRECATED,
                 'Refit.DynamicProperty',
                 $entry['attribute']
-                    ? sprintf('%s creates %s without declaring it first. Its parent class is outside the scan, so #[\\AllowDynamicProperties] will be added.', $entry['class'], $properties)
+                    ? sprintf('%s creates %s without declaring it first. #[\\AllowDynamicProperties] will be added so the properties stay dynamic.', $entry['class'], $properties)
                     : sprintf('%s creates %s without declaring it first.', $entry['class'], $properties),
                 'Refit',
                 true,
@@ -221,8 +221,15 @@ final class Scanner
         if (!mkdir($dir, 0700, true) && !is_dir($dir)) {
             throw new \RuntimeException('Cannot create a temporary directory in ' . sys_get_temp_dir());
         }
+        // Rector reports real paths. A TMPDIR that is itself a symlink (macOS /var, or a
+        // link set up on Linux) would make the copy's path a different string of a different
+        // length, and stripping that prefix truncates file names in the report.
+        $real = realpath($dir);
+        if ($real === false) {
+            throw new \RuntimeException('Cannot resolve temporary directory ' . $dir);
+        }
 
-        return $dir;
+        return $real;
     }
 
     /**

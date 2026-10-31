@@ -79,7 +79,7 @@ final class Explanations
         'Refit.DynamicProperty' => [
             'Properties created without being declared ("dynamic properties")',
             'Deprecated in PHP 8.2. Every such assignment logs a deprecation notice, which floods debug logs; PHP 9 is expected to make it an error.',
-            'Declare the properties in the class. Refit adds them automatically as plain public properties, or adds #[\AllowDynamicProperties] when the parent class lives outside the scanned code.',
+            'Declare the properties in the class. Refit adds them as plain public properties, which then show up in property_exists(), get_object_vars() and json_encode() even before they are assigned. If the class or a parent defines __get, __isset or __unset, or the parent class lives outside the scanned code, Refit adds #[\AllowDynamicProperties] instead so those methods keep working.',
         ],
         'Refit.RectorError' => [
             'Automatic fixer could not process the file',
