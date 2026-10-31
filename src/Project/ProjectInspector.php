@@ -55,8 +55,13 @@ final class ProjectInspector
     {
         $directory = new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS);
         $filter = new \RecursiveCallbackFilterIterator($directory, static function (\SplFileInfo $file) use ($excluded): bool {
+            // Symlinks are not project files. A link to a directory would pull in another tree,
+            // and a link to a file resolves to a target that may live outside this project.
+            if ($file->isLink()) {
+                return false;
+            }
             if ($file->isDir()) {
-                return !in_array($file->getFilename(), $excluded, true) && !$file->isLink();
+                return !in_array($file->getFilename(), $excluded, true);
             }
 
             return in_array(strtolower($file->getExtension()), self::EXTENSIONS, true);
@@ -159,7 +164,7 @@ final class ProjectInspector
         $libraries = [];
 
         // Composer-installed packages, wherever a vendor directory sits.
-        foreach (glob($root . '/{,*/,*/*/}vendor/composer/installed.json', GLOB_BRACE) ?: [] as $installed) {
+        foreach ($this->installedComposerFiles($root) as $installed) {
             $vendorDir = dirname($installed, 2);
             $data = $this->readJson($installed);
             $packages = $data['packages'] ?? $data ?? [];
@@ -211,6 +216,28 @@ final class ProjectInspector
         }
 
         return $libraries;
+    }
+
+    /**
+     * installed.json at the project root and one or two directories down.
+     * Separate globs, because GLOB_BRACE is not defined on musl (Alpine).
+     *
+     * @return list<string>
+     */
+    private function installedComposerFiles(string $root): array
+    {
+        $files = [];
+        foreach ([
+            '/vendor/composer/installed.json',
+            '/*/vendor/composer/installed.json',
+            '/*/*/vendor/composer/installed.json',
+        ] as $suffix) {
+            foreach (glob($root . $suffix) ?: [] as $installed) {
+                $files[] = $installed;
+            }
+        }
+
+        return $files;
     }
 
     private function markerVersion(string $path): ?string

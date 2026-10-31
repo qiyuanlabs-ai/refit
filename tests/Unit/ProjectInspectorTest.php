@@ -7,6 +7,7 @@ namespace Refit\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Refit\Project\Project;
 use Refit\Project\ProjectInspector;
+use Refit\Scanner;
 
 final class ProjectInspectorTest extends TestCase
 {
@@ -51,5 +52,72 @@ final class ProjectInspectorTest extends TestCase
         unlink($dir . '/composer.json');
         unlink($dir . '/index.php');
         rmdir($dir);
+    }
+
+    public function testSymlinkedFilesAndDirectoriesAreNotPartOfTheProject(): void
+    {
+        $root = sys_get_temp_dir() . '/refit-links-' . bin2hex(random_bytes(4));
+        $project = $root . '/project';
+        $outside = $root . '/outside';
+        mkdir($project . '/includes', 0777, true);
+        mkdir($outside . '/lib', 0777, true);
+        file_put_contents($project . '/local.php', "<?php\n");
+        file_put_contents($project . '/real.php', "<?php\n");
+        file_put_contents($outside . '/shared.php', "<?php\n");
+        file_put_contents($outside . '/lib/old.php', "<?php\n");
+        symlink('real.php', $project . '/alias.php');
+        symlink('../../outside/shared.php', $project . '/includes/shared.php');
+        symlink('../outside/lib', $project . '/linked-lib');
+
+        try {
+            $inspected = (new ProjectInspector())->inspect($project);
+
+            self::assertSame(['local.php', 'real.php'], $inspected->phpFiles);
+            self::assertNotContains('alias.php', $inspected->phpFiles);
+            self::assertNotContains('includes/shared.php', $inspected->phpFiles);
+            self::assertNotContains('linked-lib/old.php', $inspected->phpFiles);
+        } finally {
+            Scanner::removeDirectory($root);
+        }
+    }
+
+    public function testComposerInstalledJsonIsFoundWithoutGlobBrace(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Project/ProjectInspector.php');
+        self::assertDoesNotMatchRegularExpression('/\bglob\s*\([^;]*GLOB_BRACE/', $source);
+
+        $root = sys_get_temp_dir() . '/refit-glob-' . bin2hex(random_bytes(4));
+        $installed = [
+            'vendor/composer/installed.json' => 'acme/root',
+            'plugins/vendor/composer/installed.json' => 'acme/one',
+            'plugins/extra/vendor/composer/installed.json' => 'acme/two',
+            'plugins/extra/nested/vendor/composer/installed.json' => 'acme/three',
+        ];
+        foreach ($installed as $relative => $name) {
+            $path = $root . '/' . $relative;
+            mkdir(dirname($path), 0777, true);
+            file_put_contents($path, json_encode(['packages' => [['name' => $name, 'version' => '1.2.3']]]));
+        }
+        file_put_contents($root . '/index.php', "<?php\n");
+
+        try {
+            $project = (new ProjectInspector())->inspect($root);
+            $names = array_map(static fn ($library): string => $library->name, $project->libraries);
+            $vendorPaths = [];
+            foreach ($project->libraries as $library) {
+                if ($library->name === 'vendor') {
+                    $vendorPaths[] = $library->path;
+                }
+            }
+            sort($vendorPaths);
+
+            self::assertContains('acme/root', $names);
+            self::assertContains('acme/one', $names);
+            self::assertContains('acme/two', $names);
+            self::assertNotContains('acme/three', $names);
+            self::assertSame(['plugins/extra/vendor', 'plugins/vendor', 'vendor'], $vendorPaths);
+        } finally {
+            Scanner::removeDirectory($root);
+        }
     }
 }

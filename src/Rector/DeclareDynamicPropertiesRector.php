@@ -23,6 +23,7 @@ use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\NodeFinder;
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
 use Rector\Rector\AbstractRector;
 use Refit\Check\RectorFixer;
@@ -35,10 +36,15 @@ use Rector\RuleDoc\RuleDefinition;
  *
  * Rector's own CompleteDynamicPropertiesRector is deprecated because it added typed
  * properties, which can turn a notice into a fatal "accessed before initialization".
- * This rule declares the missing properties untyped and public, exactly like the dynamic
- * property PHP created before, so behaviour does not change. When a parent class or a trait
- * cannot be inspected (for example a WooCommerce base class), it adds
- * #[\AllowDynamicProperties] instead, which is harmless on every PHP version.
+ * This rule declares the missing properties untyped and public. That is not
+ * behaviour-neutral: property_exists(), get_object_vars() and json_encode() include a
+ * declared property even before it is assigned, and __get, __isset and __unset no longer
+ * run for that name. If the class or an ancestor defines any of those methods, the
+ * property is not declared and #[\AllowDynamicProperties] is added instead. A class or
+ * ancestor that defines __set is left unchanged, because assignment already goes through
+ * that method. When a parent class or a trait cannot be inspected (for example a
+ * WooCommerce base class), the attribute is added as well, which is harmless on every
+ * PHP version.
  */
 final class DeclareDynamicPropertiesRector extends AbstractRector
 {
@@ -107,15 +113,17 @@ final class DeclareDynamicPropertiesRector extends AbstractRector
         if ($inherited === null) {
             // Something this class builds on is outside the scanned code. We cannot tell which
             // properties it already declares, so allow dynamic properties instead.
-            $node->attrGroups[] = new AttributeGroup([new Attribute(new FullyQualified('AllowDynamicProperties'))]);
-            $this->log($node, $missing, true);
-
-            return $node;
+            return $this->allowDynamic($node, $missing);
         }
 
-        $missing = array_values(array_filter($missing, static fn (string $name): bool => !$inherited($name)));
+        $missing = array_values(array_filter($missing, static fn (string $name): bool => !$inherited['declares']($name)));
         if ($missing === []) {
             return null;
+        }
+
+        // Declaring the property would stop __get/__isset/__unset from running for that name.
+        if ($this->hasMagicRead($node) || $inherited['magicRead']) {
+            return $this->allowDynamic($node, $missing);
         }
 
         $newProperties = [];
@@ -126,6 +134,17 @@ final class DeclareDynamicPropertiesRector extends AbstractRector
         $this->log($node, $missing, false);
 
         return $node;
+    }
+
+    /**
+     * @param list<string> $properties
+     */
+    private function allowDynamic(Class_ $class, array $properties): Class_
+    {
+        $class->attrGroups[] = new AttributeGroup([new Attribute(new FullyQualified('AllowDynamicProperties'))]);
+        $this->log($class, $properties, true);
+
+        return $class;
     }
 
     /**
@@ -178,12 +197,14 @@ final class DeclareDynamicPropertiesRector extends AbstractRector
     }
 
     /**
-     * Returns a callable telling whether a parent class or trait already declares a property,
-     * or null when some parent or trait cannot be inspected.
+     * Tells whether a parent class or trait already declares a property, and whether any
+     * of them reads properties through __get, __isset or __unset.
      *
-     * @return (callable(string): bool)|null
+     * Returns null when some parent or trait cannot be inspected.
+     *
+     * @return array{declares: callable(string): bool, magicRead: bool}|null
      */
-    private function inheritedLookup(Class_ $class): ?callable
+    private function inheritedLookup(Class_ $class): ?array
     {
         $sources = [];
         if ($class->extends !== null) {
@@ -198,36 +219,70 @@ final class DeclareDynamicPropertiesRector extends AbstractRector
         }
 
         $reflections = [];
+        $magicRead = false;
         foreach ($sources as $name) {
             if ($name === null || !$this->reflectionProvider->hasClass($name)) {
                 return null;
             }
             $reflection = $this->reflectionProvider->getClass($name);
+            // __set already accepts dynamic writes. Keep the previous behaviour: do not
+            // declare properties and do not add the attribute.
             if ($reflection->getName() === 'stdClass' || $reflection->hasNativeMethod('__set')) {
-                return static fn (string $property): bool => true;
+                return ['declares' => static fn (string $property): bool => true, 'magicRead' => false];
             }
             foreach ($reflection->getAncestors() as $ancestor) {
                 if ($ancestor->getName() === 'stdClass' || $ancestor->getNativeReflection()->getAttributes('AllowDynamicProperties') !== []) {
-                    return static fn (string $property): bool => true;
+                    return ['declares' => static fn (string $property): bool => true, 'magicRead' => false];
                 }
+            }
+            if ($this->reflectionHasMagicRead($reflection)) {
+                $magicRead = true;
             }
             $reflections[] = $reflection;
         }
 
-        return static function (string $property) use ($reflections): bool {
-            foreach ($reflections as $reflection) {
-                if ($reflection->hasNativeProperty($property)) {
+        return [
+            'declares' => static function (string $property) use ($reflections): bool {
+                foreach ($reflections as $reflection) {
+                    if ($reflection->hasNativeProperty($property)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+            'magicRead' => $magicRead,
+        ];
+    }
+
+    private function reflectionHasMagicRead(ClassReflection $reflection): bool
+    {
+        $chain = [$reflection, ...$reflection->getAncestors()];
+        foreach ($chain as $class) {
+            foreach (['__get', '__isset', '__unset'] as $method) {
+                if ($class->hasNativeMethod($method)) {
                     return true;
                 }
             }
+        }
 
-            return false;
-        };
+        return false;
     }
 
     private function hasMagicSet(Class_ $class): bool
     {
         return $class->getMethod('__set') instanceof ClassMethod;
+    }
+
+    private function hasMagicRead(Class_ $class): bool
+    {
+        foreach (['__get', '__isset', '__unset'] as $method) {
+            if ($class->getMethod($method) instanceof ClassMethod) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function hasAttribute(Class_ $class, string $shortName): bool
