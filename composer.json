@@ -1,0 +1,32 @@
+{
+    "name": "qiyuanlabs/refit",
+    "description": "Check and fix PHP 8.x compatibility in WordPress plugins and plain PHP code, with a report your client can read.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/qiyuanlabs-ai/refit",
+    "support": {
+        "issues": "https://github.com/qiyuanlabs-ai/refit/issues",
+        "source": "https://github.com/qiyuanlabs-ai/refit"
+    },
+    "authors": [
+        { "name": "QiYuan Labs LLC", "homepage": "https://php.qiyuanlabs.ai" }
+    ],
+    "keywords": ["php8", "upgrade", "compatibility", "wordpress", "rector", "phpcompatibility", "migration"],
+    "require": {
+        "php": ">=8.1",
+        "symfony/console": "^6.4 || ^7.0",
+        "symfony/process": "^6.4 || ^7.0",
+        "rector/rector": "^2.8",
+        "squizlabs/php_codesniffer": "^3.13.3 || ^4.0",
+        "phpcompatibility/php-compatibility": "^10.0@alpha"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5 || ^11.0"
+    },
+    "autoload": { "psr-4": { "Refit\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Refit\\Tests\\": "tests/" } },
+    "bin": ["bin/refit"],
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": { "sort-packages": true, "allow-plugins": { "dealerdirect/phpcodesniffer-composer-installer": true } }
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<ruleset name="Refit" namespace="Refit\Standards\Refit">
+    <description>PHPCompatibility plus Refit's extra checks for PHP upgrades.</description>
+
+    <rule ref="PHPCompatibility"/>
+    <rule ref="Refit.DateTime.UnguardedModify"/>
+
+    <!-- WordPress core ships polyfills for these, so using them is not a problem on any supported PHP. -->
+    <rule ref="PHPCompatibility.FunctionUse.NewFunctions">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+    <rule ref="PHPCompatibility.Constants.NewConstants">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+    <rule ref="PHPCompatibility.Classes.NewClasses">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+    <rule ref="PHPCompatibility.Interfaces.NewInterfaces">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+</ruleset>

@@ -1,0 +1,26 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if (PHP_VERSION_ID < 80100) {
+    fwrite(STDERR, "Refit needs PHP 8.1 or later to run (it can still check code written for older versions).\n");
+    exit(1);
+}
+
+$autoloaders = [
+    __DIR__ . '/../vendor/autoload.php',      // a clone of this repository
+    __DIR__ . '/../../../autoload.php',       // installed with Composer
+];
+foreach ($autoloaders as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+        break;
+    }
+}
+if (!class_exists(Refit\Application::class)) {
+    fwrite(STDERR, "Cannot find Composer's autoloader. Run composer install.\n");
+    exit(1);
+}
+
+exit((new Refit\Application())->run());

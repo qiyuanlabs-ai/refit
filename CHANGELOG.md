@@ -1,0 +1,13 @@
+# Changelog
+
+## 0.1.0 (unreleased)
+
+First release.
+
+- `refit scan`: compile check, PHPCompatibility, a DateTime::modify() check for PHP 8.3,
+  dynamic property detection, and a dry run of the automatic fixes. Reports in the console,
+  HTML, Markdown and JSON.
+- `refit fix`: applies 54 compatibility-only fixes in place, keeps the project's
+  indentation, restores any file that stops compiling, and leaves bundled libraries alone.
+- Understands WordPress plugin and theme headers, readme.txt and composer.json to find the
+  oldest PHP version the code must keep supporting.

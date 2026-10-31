@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHP 8.4 report: Feed Them Social - Social Media Feeds, Video, and Photo Galleries</title>
+<style>
+:root{--bg:#fbfaf8;--panel:#fff;--text:#1d1d1f;--muted:#5f6368;--line:#e4e2dd;--breaks:#b42318;--breaks-bg:#fef1f0;--review:#9a5b00;--review-bg:#fff6e5;--deprecated:#475467;--deprecated-bg:#f2f4f7;--fix:#067647;--fix-bg:#ecfdf3;--accent:#3c4fe0}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--panel:#1c1c1f;--text:#ececef;--muted:#a0a0a8;--line:#2e2e33;--breaks:#ff8a7a;--breaks-bg:#3a1714;--review:#ffc266;--review-bg:#352610;--deprecated:#c3c8d0;--deprecated-bg:#26282d;--fix:#6ce0a6;--fix-bg:#10291d;--accent:#9aa6ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:920px;margin:0 auto;padding:32px 16px 48px}h1{font-size:26px;line-height:1.25;margin:0 0 4px}h2{font-size:19px;margin:36px 0 12px}
+.meta{color:var(--muted);margin:0 0 20px}.verdict{padding:14px 16px;border-radius:10px;font-weight:600;margin-bottom:18px;border:1px solid var(--line)}
+.verdict.breaks{background:var(--breaks-bg);color:var(--breaks)}.verdict.review{background:var(--review-bg);color:var(--review)}.verdict.deprecated{background:var(--deprecated-bg);color:var(--deprecated)}.verdict.ok{background:var(--fix-bg);color:var(--fix)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column}
+.stat .num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}.stat .label{font-weight:600}.stat .sub{color:var(--muted);font-size:13px}
+.stat.breaks .num{color:var(--breaks)}.stat.review .num{color:var(--review)}.stat.deprecated .num{color:var(--deprecated)}.stat.fix .num{color:var(--fix)}
+.legend{color:var(--muted);font-size:14px;margin:12px 0 0;padding-left:18px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:0 0 10px}summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;list-style:none}summary::-webkit-details-marker{display:none}
+.badge{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}.badge.breaks{background:var(--breaks-bg);color:var(--breaks)}.badge.review{background:var(--review-bg);color:var(--review)}.badge.deprecated{background:var(--deprecated-bg);color:var(--deprecated)}.badge.fix{background:var(--fix-bg);color:var(--fix)}
+.title{font-weight:600;flex:1 1 240px}.count{color:var(--muted);font-variant-numeric:tabular-nums}.body{padding:0 14px 14px;border-top:1px solid var(--line)}.body p{margin:10px 0}
+ul.loc{margin:8px 0 0;padding:0;list-style:none;font-size:13px}ul.loc li{padding:5px 0;border-top:1px dashed var(--line);overflow-wrap:anywhere}code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600}.n{text-align:right;font-variant-numeric:tabular-nums}
+ul.how{padding-left:18px;color:var(--muted)}footer{margin-top:40px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:14px}a{color:var(--accent)}.empty{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>PHP 8.4 upgrade report: Feed Them Social - Social Media Feeds, Video, and Photo Galleries</h1>
+<p class="meta">WordPress plugin 4.4.3 · 46 PHP files · checked 30 Oct 2026</p>
+<div class="verdict deprecated">Runs on PHP 8.4, with 1 deprecation warning that will fill the error log and break in a later PHP version.</div>
+<div class="stats"><div class="stat breaks"><span class="num">0</span><span class="label">Breaks</span><span class="sub">0 in bundled libraries</span></div><div class="stat review"><span class="num">0</span><span class="label">Check</span><span class="sub">0 in bundled libraries</span></div><div class="stat deprecated"><span class="num">1</span><span class="label">Deprecated</span><span class="sub">0 in bundled libraries</span></div><div class="stat fix"><span class="num">0</span><span class="label">Auto-fixable</span><span class="sub">by <code>refit fix</code></span></div></div>
+<ul class="legend"><li><b>Breaks</b>: fails on PHP 8.4; visitors usually see a "critical error" page.</li><li><b>Check</b>: can fail depending on input; needs a person to look at it.</li><li><b>Deprecated</b>: still works, but logs notices and will break in a later PHP version.</li></ul>
+<h2>Issues in the project's own code</h2>
+<details><summary><span class="badge deprecated">Deprecated</span><span class="title">Parameters that are implicitly nullable (Type $x = null)</span><span class="count">1 found</span></summary><div class="body"><p>Deprecated in PHP 8.4. Each declaration logs a deprecation notice when the file loads.</p><p><b>Fix:</b> Write ?Type $x = null. Refit fixes this automatically (needs PHP 7.1 or later).</p><ul class="loc"><li><code>includes/feeds/youtube/YoutubeFeed.php:1094</code><br>Implicitly marking a parameter as nullable is deprecated since PHP 8.4. Update the type to be explicitly nullable instead. Found implicitly nullable parameter: $next_page_token.</li></ul></div></details>
+
+
+<h2>How this was checked</h2>
+<ul class="how">
+<li>Target PHP 8.4. The code must keep running on PHP 7.0 (declared by the project), so automatic fixes never use newer syntax than that.</li>
+<li>Every file was compiled with PHP 8.3.6. No project code was executed.</li>
+<li>Tools: Refit 0.1.0, Rector 2.8.3, PHP_CodeSniffer 4.0.4, PHPCompatibility 10.0.0-alpha2.</li>
+<li>Static checks cannot see problems that depend on runtime data, such as a function receiving null or a string where it now requires an array. Test the upgraded code on a staging site with debug logging on.</li>
+</ul>
+<footer>Generated by <a href="https://github.com/qiyuanlabs-ai/refit">Refit</a>, free and open source. Need the upgrade done for you? <a href="https://php.qiyuanlabs.ai">QiYuan Labs</a> does fixed-price PHP upgrades.</footer>
+</main>
+</body>
+</html>
