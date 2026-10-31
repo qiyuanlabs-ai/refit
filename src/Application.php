@@ -10,7 +10,7 @@ use Symfony\Component\Console\Application as ConsoleApplication;
 
 final class Application extends ConsoleApplication
 {
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.1.1';
     public const REPOSITORY_URL = 'https://github.com/qiyuanlabs-ai/refit';
     public const DEFAULT_TARGET = '8.4';
 
