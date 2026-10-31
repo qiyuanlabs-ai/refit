@@ -43,14 +43,8 @@ final class RectorFixer
             throw new \RuntimeException('Cannot read project directory ' . $root);
         }
         $root = rtrim($resolved, '/');
-        // Rector follows a symlinked file and writes the target, which may be outside this
-        // project. Move those links aside for the run and put them back afterwards.
-        $held = $this->holdPhpSymlinks($root);
-        try {
-            return $this->fixProject($root, $targetPhp, $minPhp, $skip, $excluded, $includeOptIn, $workDir);
-        } finally {
-            $this->restoreHeld($held);
-        }
+
+        return $this->fixProject($root, $targetPhp, $minPhp, $skip, $excluded, $includeOptIn, $workDir);
     }
 
     /**
@@ -68,10 +62,22 @@ final class RectorFixer
             $skip[] = '*/' . $dir;
         }
         $indent = self::detectIndent($root, $skip);
+        // Rector follows a symlinked file and writes its target, which may be outside this
+        // project. Skip links whose target is outside; Rector matches skips by real path, so
+        // skipping a link to a file inside the project would skip that file too. Nothing in
+        // the project is renamed, so an interrupted run leaves the links where they were.
+        $links = array_values(array_filter(
+            $this->phpSymlinkFiles($root),
+            static function (string $link) use ($root): bool {
+                $target = realpath($link);
+
+                return $target === false || !str_starts_with($target, $root . '/');
+            },
+        ));
         $result = new RectorResult();
         foreach ([$syntax, $rest] as $number => $pass) {
             if ($pass !== []) {
-                $this->runPass($root, $targetPhp, $pass, $skip, $indent, $workDir, $workDir . '/rector-cache-' . $number, $result);
+                $this->runPass($root, $targetPhp, $pass, $skip, $links, $indent, $workDir, $workDir . '/rector-cache-' . $number, $result);
             }
         }
 
@@ -81,13 +87,15 @@ final class RectorFixer
     /**
      * @param list<class-string> $rules
      * @param list<string> $skip
+     * @param list<string> $links absolute paths of symlinked PHP files to leave alone
      * @param array{0: string, 1: int} $indent
      */
-    private function runPass(string $root, int $targetPhp, array $rules, array $skip, array $indent, string $workDir, string $cacheDir, RectorResult $result): void
+    private function runPass(string $root, int $targetPhp, array $rules, array $skip, array $links, array $indent, string $workDir, string $cacheDir, RectorResult $result): void
     {
         $log = $workDir . '/dynamic-properties.jsonl';
         $config = $workDir . '/rector-' . bin2hex(random_bytes(4)) . '.php';
         $skipPaths = array_map(static fn (string $dir): string => $root . '/' . $dir . (str_contains($dir, '*') ? '/*' : ''), $skip);
+        $skipPaths = [...$skipPaths, ...$links];
 
         file_put_contents($config, sprintf(
             <<<'PHP'
@@ -226,46 +234,6 @@ PHP,
         }
 
         return ltrim($path, '/');
-    }
-
-    /**
-     * Rename PHP symlinks out of Rector's way. The link itself is renamed; the target is not.
-     *
-     * @return list<array{0: string, 1: string}> held path, original path
-     */
-    private function holdPhpSymlinks(string $root): array
-    {
-        $held = [];
-        try {
-            foreach ($this->phpSymlinkFiles($root) as $path) {
-                $aside = $path . '.refit-held';
-                if (is_link($aside) || file_exists($aside)) {
-                    throw new \RuntimeException('Refusing to move symlink aside because ' . $aside . ' already exists.');
-                }
-                if (!rename($path, $aside)) {
-                    throw new \RuntimeException('Cannot move symlink aside: ' . $path);
-                }
-                $held[] = [$aside, $path];
-            }
-        } catch (\Throwable $error) {
-            $this->restoreHeld($held);
-
-            throw $error;
-        }
-
-        return $held;
-    }
-
-    /**
-     * @param list<array{0: string, 1: string}> $held
-     */
-    private function restoreHeld(array $held): void
-    {
-        foreach (array_reverse($held) as [$aside, $path]) {
-            if (is_link($aside) || file_exists($aside)) {
-                rename($aside, $path);
-            }
-        }
     }
 
     /**

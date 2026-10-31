@@ -168,6 +168,42 @@ final class CliTest extends TestCase
         self::assertFileDoesNotExist($project . '/via-php.php.refit-held');
     }
 
+    public function testInterruptedFixLeavesSymlinksInPlace(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            self::markTestSkipped('Needs POSIX signals and symlinks.');
+        }
+        $this->workDir = Scanner::makeWorkDir();
+        $project = $this->workDir . '/project';
+        $outside = $this->workDir . '/outside';
+        mkdir($project, 0777, true);
+        mkdir($outside, 0777, true);
+        // Enough files that Rector is still running when the run is interrupted.
+        for ($i = 1; $i <= 200; $i++) {
+            file_put_contents($project . "/file{$i}.php", "<?php\nclass Thing{$i}\n{\n    public function f()\n    {\n        \$this->value{$i} = 1;\n        \$n = 'a';\n        echo \"\${n}\";\n    }\n}\n");
+        }
+        $shared = "<?php\n\$name = 'Outside';\necho \"Hello \${name}\";\n";
+        file_put_contents($outside . '/shared.php', $shared);
+        symlink('../outside/shared.php', $project . '/shared.php');
+
+        $process = $this->refit(['fix', $project, '--force']);
+        $process->start();
+        $deadline = microtime(true) + 60;
+        while ($process->isRunning() && !str_contains($process->getOutput(), 'Fixing project') && microtime(true) < $deadline) {
+            usleep(50_000);
+        }
+        usleep(1_500_000);
+        if ($process->isRunning()) {
+            $process->signal(2); // SIGINT, as Ctrl+C sends
+        }
+        $process->wait();
+
+        self::assertTrue(is_link($project . '/shared.php'), 'The symlink is missing after an interrupted fix.');
+        self::assertSame('../outside/shared.php', readlink($project . '/shared.php'));
+        self::assertSame([], glob($project . '/*.refit-held') ?: []);
+        self::assertSame($shared, file_get_contents($outside . '/shared.php'));
+    }
+
     public function testScanReportIgnoresSymlinksInTheTempDirectory(): void
     {
         $normal = $this->refit(['scan', self::FIXTURE, '--json=-']);
